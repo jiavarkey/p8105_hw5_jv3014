@@ -99,6 +99,31 @@ and subject ID, make sure weekly observations are “tidy”, and do any
 other tidying that’s necessary
 
 ```{r}
+study_df = 
+  tibble(
+  file_name = list.files(path = "data", full.names = TRUE)
+  ) |>
+  mutate(
+    data = map(file_name, \(f) read_csv(f, show_col_types = FALSE)), 
+    base_name = tools::file_path_sans_ext(basename(file_name))
+  ) |>
+  separate(
+    base_name,
+    into = c("arm", "subject_id")
+  ) |>
+  unnest(data) |>
+  pivot_longer(
+    cols = starts_with("week_"),
+    names_to = "week",
+    names_prefix = "week_",
+    values_to = "observation"
+  ) |>
+  mutate(
+    week = as.integer(week),
+    arm = recode(arm, "con" = "Control", "exp" = "Experimental"),
+    subject_id = factor(subject_id)
+  ) |>
+  select(subject_id, arm, week, observation)
 
 ```
 
@@ -106,8 +131,27 @@ Make a spaghetti plot showing observations on each subject over time,
 and comment on differences between groups.
 
 ```{r}
-
+study_df |>
+  ggplot(aes(x = week, y = observation, group = interaction(arm, subject_id), color = arm)) +
+  geom_line(alpha = 0.7, linewidth = 0.8) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  labs(
+    title = "Longitudinal Observations by Subject and Study Arm",
+    x = "Week",
+    y = "Observation Value",
+    color = "Study Arm"
+  ) 
 ```
+
+**At Week 1, participants in both the Control and Experimental arms
+start at roughly similar observation values. Over the 8-week period, the
+Experimental arm exhibits a clear, steady upward linear trend, with
+nearly all subjects increasing to values between 3 and 7 by Week 8. In
+contrast, the Control arm remains relatively flat over time, fluctuating
+around its baseline range with no sustained upward or downward trend. By
+around Week 4 or 5, the two groups become almost entirely separated,
+indicating a strong positive effect of the experimental intervention
+over time.**
 
 ## Problem 3
 
